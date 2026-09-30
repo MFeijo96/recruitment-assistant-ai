@@ -1,0 +1,49 @@
+# Python bytecode
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+
+# Virtual environments
+.venv/
+venv/
+env/
+ENV/
+
+# Environment/config secrets
+.env
+.env.*
+!.env.example
+
+# Python tooling caches
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+.coverage.*
+htmlcov/
+
+# Build / packaging artifacts
+build/
+dist/
+*.egg-info/
+.eggs/
+
+# IDE/editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+
+# Optional: local project outputs
+local_settings.py
+
+# AAMAD / project runtime
+project-context/2.build/logs/
