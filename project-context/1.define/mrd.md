@@ -6,7 +6,7 @@
 
 **Selected Runtime** (implementation choice for the generated MVP; not the AAMAD methodology): `crewai` (resolved default; `AAMAD_TARGET_RUNTIME` unset; `aamad.config.yml` not present; `aamad.config.example.yml` sets `runtime.target: crewai`).
 
-**System concept under research**: Recruiter-operated chat MVP in which a sequential crew (researcher → matcher → communicator → reporter) produces an explainable candidate report. Human review remains mandatory; the product does not auto-hire or auto-send outreach.
+**System concept under research**: Recruiter-operated chat MVP in which a sequential crew (researcher → evaluator → recommender) produces an explainable candidate report and draft-only outreach. Human review remains mandatory; the product does not auto-hire or auto-send outreach. The recommender combines the reporting and outreach roles in the official four-agent reference example.
 
 ---
 
@@ -294,7 +294,7 @@ An AI-powered multi-agent system differs from these incumbents in three importan
 - No `AAMAD_TARGET_RUNTIME` in the environment at first research time; runtime resolved to **`crewai`** per adapter registry default and example config. **MRD-Q1:** project config SHALL match `aamad.config.example.yml` verbatim.
 - No `system-description.md` / elicitation questionnaire; use-case specified as CrewAI recruitment example + recruitment assistant application.
 - Product is **market-researchable** (TA software category) even if first deployment is internal; MRD is therefore **not skipped**.
-- Example’s “10 candidates” and four-agent names are the intended MVP workflow.
+- The official example’s “10 candidates” cap is retained. Its four roles are reference material; the MVP uses the three-role workflow resolved in MRD-Q9 and the SAD.
 - Market figures are **publisher estimates** (paywalled full methodologies); used as ranges.
 - LinkedIn Hiring Assistant revenue/time-saved figures are **vendor-reported via secondary blogs** and are not independently audited.
 - Digital Omnibus / Annex III application dates (e.g. Dec 2027) are cited from legal commentary and **must be verified by counsel**.
@@ -317,6 +317,7 @@ Operator asked `@product-mgr` to answer remaining Open Questions by judgment (20
 | MRD-Q6 | **No ATS in use.** No vendor-specific connector. Generic ATS integration remains P2 with no preferred vendor. |
 | MRD-Q7 | **No production hiring launch** in EU, UK, NYC, or other US states in this program. MVP is internal/demo. Still apply **HITL + no sole automated rejection**. NYC AEDT production use is out of scope. |
 | MRD-Q8 | Job-fit PDF (`template_job_fit_assessment`) is a **separate product slice at P2**, not P1 and not the same MVP train. |
+| MRD-Q9 | The MVP uses three sequential roles: Researcher, Evaluator, and Recommender. Recommender combines the reference example’s outreach-drafting and reporting responsibilities; the official example’s four-agent design remains research provenance, not the product contract. | This matches the SAD and running backend while retaining ranked assessments, outreach drafts, and the final report. |
 
 ---
 

@@ -17,12 +17,13 @@ Talent acquisition teams still spend most of a requisition cycle on **manual sou
 
 ### Solution Overview
 
-A **four-agent sequential crew** productized from CrewAI’s official recruitment example:
+A **three-agent sequential crew** productized for the MVP:
 
 1. **Job Candidate Researcher** — produce a list of potential candidates (from operator-supplied profiles and/or allowed public research — **not** LinkedIn cookie scrape).
-2. **Candidate Matcher and Scorer** — rank with written justifications.
-3. **Candidate Outreach Strategist** — methods and **templates** (no send).
-4. **Candidate Reporting Specialist** — recruiter markdown report merging prior tasks.
+2. **Candidate Evaluator** — assess job-related evidence and provide advisory scores with written justifications.
+3. **Candidate Recommender** — rank candidates, draft outreach templates, and compile the recruiter markdown report. No messages are sent.
+
+The Recommender combines outreach drafting and reporting from the four-role CrewAI reference example; the user-visible outputs remain unchanged.
 
 **Differentiators vs ATS copilots / LinkedIn Hiring Assistant:** explicit task graph, YAML-defined roles, citations in-report, AAMAD-auditable traces, works without an ATS. **Not a differentiator:** size of a talent graph.
 
@@ -254,11 +255,11 @@ These items may become future enhancements after the core recruiting workflow is
 ### Runtime & Agent Specifications
 
 - **Runtime for Build:** `crewai` per adapter-crewai (YAML `config/agents.yaml`, `config/tasks.yaml`, `crew.py`, sequential process).
-- **Collaboration:** Sequential; reporter task `context` = research + match + outreach (as in official `crew.py`).
-- **Delegation:** `allow_delegation=false` for all four agents (example + adapter default).
+- **Collaboration:** Sequential; evaluator context includes research, and recommender context includes research and evaluation.
+- **Delegation:** `allow_delegation=false` for all three agents (adapter default).
 - **Memory:** `memory=False` for reproducibility.
 - **Controls (adapter baseline):** `max_iter = 8` (≤ 12); `max_retry_limit >= 2`; crew `max_rpm = 10`; `max_execution_time = 480` seconds per kickoff.
-- **Other runtimes:** Equivalent four roles if `AAMAD_TARGET_RUNTIME` changes; do not redefine the product as “only CrewAI.”
+- **Other runtimes:** Preserve the same three product roles if `AAMAD_TARGET_RUNTIME` changes; do not redefine the product as “only CrewAI.”
 
 ### Core Agent Definitions
 
@@ -268,32 +269,25 @@ These items may become future enhancements after the core recruiting workflow is
 **tools (MVP):** None by default (fixture or `candidate_profiles`). Bind `SerperDevTool` / `ScrapeWebsiteTool` only when **both** `SERPER_API_KEY` and `AAMAD_ENABLE_WEB_RESEARCH=true`. **Prohibited:** LinkedIn cookie (`li_at`) Selenium tool from the example.  
 **runtime notes:** `allow_delegation=false`; `verbose` as needed for traces (redact PII in persisted logs).
 
-**agent:** `matcher`  
-**role:** Candidate Matcher and Scorer  
-**goal:** Match candidates to the job and score them with transparent justification  
-**tools:** Same web-research policy as researcher; **do not scrape LinkedIn** (example task text).  
-**runtime notes:** Scores are advisory; no auto-disposition.
+**agent:** `evaluator`  
+**role:** Candidate Evaluator  
+**goal:** Compare candidates with job requirements and provide transparent, evidence-based advisory scores.  
+**tools:** Same web-research policy as researcher; **do not scrape LinkedIn**.  
+**runtime notes:** Scores are advisory; do not infer protected traits or make disposition decisions.
 
-**agent:** `communicator`  
-**role:** Candidate Outreach Strategist  
-**goal:** Develop outreach strategies and templates for selected candidates  
-**tools:** Web research only under the same opt-in flag; **no send-mail tool** in MVP.  
-**runtime notes:** Output is drafts only.
-
-**agent:** `reporter`  
-**role:** Candidate Reporting Specialist  
-**goal:** Report the best candidates to recruiters  
-**tools:** None (example).  
-**runtime notes:** Markdown **without** wrapping code fences (example `expected_output`); merge via `Task.context`.
+**agent:** `recommender`  
+**role:** Candidate Recommender  
+**goal:** Rank candidates and compile a recruiter-facing report with draft-only outreach templates.  
+**tools:** None by default; approved public search remains opt-in and server-side. No send-mail tool.  
+**runtime notes:** Include evidence, uncertainty, score rationale, and human-review notice. Return markdown without enclosing code fences.
 
 ### Task graph (P0)
 
 | Task id | Agent | Input | Expected output (from example, productized) |
 | --- | --- | --- | --- |
 | `research_candidates_task` | researcher | `{job_requirements}` (+ optional candidate pack) | Up to **10** candidates with contact **if provided or publicly cited**, else “unknown — verify” + brief suitability |
-| `match_and_score_candidates_task` | matcher | Job requirements + research output | Ranked list, scores, justifications |
-| `outreach_strategy_task` | communicator | Job requirements + selected candidates | Methods + templates |
-| `report_candidates_task` | reporter | Context of the three prior tasks | Recruiter markdown report |
+| `evaluate_candidates_task` | evaluator | Job requirements + research output | Per-candidate advisory scores, strengths, gaps, and evidence-based rationale |
+| `recommend_candidates_task` | recommender | Research and evaluation outputs | Ranked recruiter markdown report with draft-only outreach templates |
 
 Kickoff input **must** be JSON-compatible:
 
@@ -346,12 +340,13 @@ Chat MVP: map the user message to `job_requirements`. If the operator pastes syn
 - Backend maps to `crew.kickoff(inputs={"job_requirements": ..., "candidate_profiles": ...})` with `candidate_profiles` defaulting to `""`.
 - Optional `candidate_profiles` is free text only (synthetic/fixture content in the first environment).
 
-**P0-2 Sequential four-agent run**  
+**P0-2 Sequential three-agent run**  
 *As a recruiter, I want research, scoring, outreach drafts, and a combined report so that I do not stitch tools myself.*  
 **AC-P0-2:**
 
-- Agents/tasks exist in YAML matching the four example roles.
-- Process is sequential; reporter has context from the other three tasks.
+- Researcher, Evaluator, and Recommender agents/tasks exist in YAML.
+- Process is sequential; Evaluator receives Researcher output, and Recommender receives research and evaluation outputs.
+- Recommender supplies ranked recommendations, draft-only outreach, and the combined report.
 - `allow_delegation=false` on all agents.
 - Run completes or fails with a Diagnostic-style error in chat. **Hard cap:** `max_execution_time = 480` seconds.
 
@@ -359,7 +354,7 @@ Chat MVP: map the user message to `job_requirements`. If the operator pastes syn
 *As a recruiter, I want a markdown report of recommended candidates with scores and outreach strategy so that I can brief a hiring manager.*  
 **AC-P0-3:**
 
-- Final assistant message contains the reporter markdown (profiles, scores, outreach), not a raw stack trace on success.
+- Final assistant message contains the recommender markdown (profiles, scores, outreach), not a raw stack trace on success.
 - Report does not include a fenced copy of the entire job spec as required by the example (“no need to include the job requirements formatted as markdown without '```'”).
 - UI marks the experience as **advisory / human review required**.
 
@@ -368,7 +363,7 @@ Chat MVP: map the user message to `job_requirements`. If the operator pastes syn
 **AC-P0-4:**
 
 - Shipped code and docs **must not** instruct users to copy `li_at` or run the example LinkedIn Selenium tool.
-- Matcher instructions retain the example constraint against LinkedIn scrape.
+- Researcher and Evaluator instructions retain the constraint against LinkedIn scraping.
 - QA includes a check that the LinkedIn cookie tool is absent from the MVP tool bind list.
 
 **P0-5 Fixture / demo path**  
@@ -555,6 +550,7 @@ Resolved by PM judgment on 2026-09-30. No open questions remain for this Define 
 | PRD-Q6 | The P1 job-fit PDF workflow is deferred to P2 and is not part of the same release train. | The first release is a recruiter-reporting assistant, not a full document-processing product. |
 | PRD-Q7 | No production hiring use is approved in the EU, UK, or NYC for this program. The product remains internal/demo only until counsel and governance review. | The MRD already defines the legal boundary and the product must stay human reviewed. |
 | PRD-Q8 | The “accept/edit” KPI is not instrumented in MVP; manual QA observation is the method for this release. | This avoids building measurement infrastructure before the product is stabilized. |
+| PRD-Q9 | Use three agents: Researcher, Evaluator, and Recommender. Recommender combines outreach drafting and report compilation. | This aligns the PRD with the implemented runtime and SAD while preserving the user-visible workflow and all required outputs. |
 
 ---
 
@@ -569,3 +565,4 @@ Resolved by PM judgment on 2026-09-30. No open questions remain for this Define 
 - **Model / tools:** Cursor Grok 4.6; no application code; no SAD/SFS/Build artifacts modified.
 - **Temperature / max_tokens:** n/a (interactive Define-phase authoring).
 - **Preceding action:** `create-mrd` → `project-context/1.define/mrd.md`.
+- **Follow-up:** Synchronized the PRD agent count and task graph with the authoritative three-agent SAD/runtime on 2026-10-02.

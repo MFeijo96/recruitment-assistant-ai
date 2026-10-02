@@ -48,36 +48,27 @@ This project solves that problem by using a structured multi-agent workflow to a
 
 ## Architecture Overview
 
-The application is built around a collaborative multi-agent workflow. The system uses a sequential crew where each agent focuses on a different stage of recruiting.
+The application has a React/Vite browser client and a FastAPI service. The API accepts a job brief, starts one in-memory run, and executes three CrewAI agents sequentially. The browser polls the run status and displays the completed advisory report.
 
 ```mermaid
 flowchart LR
-    A[Job Requirements] --> B[Researcher Agent]
-    B --> C[Evaluator Agent]
-    C --> D[Recommender Agent]
-    D --> E[Recruiter Report]
+    A[React + Vite UI] -->|POST /api/runs| B[FastAPI]
+    B --> C[In-memory run registry]
+    C --> D[Researcher]
+    D --> E[Evaluator]
+    E --> F[Recommender]
+    F -->|Report and status| B
+    B -->|Poll /api/runs/{id}| A
+    D -.->|Default| G[Synthetic fixtures]
+    D -.->|Optional| H[Serper search]
+    D --> I[LLM provider]
+    E --> I
+    F --> I
 ```
 
-### Agent roles and responsibilities
+The Vite development server proxies `/api` and `/healthz` to FastAPI. CrewAI configuration lives in YAML, while Python builds and runs the sequential crew. When no candidate profiles are supplied and web research is disabled, the backend uses synthetic fixtures. Serper search is only enabled when both `SERPER_API_KEY` and `AAMAD_ENABLE_WEB_RESEARCH=true` are set.
 
-**Researcher Agent**
-- Finds or gathers candidate information
-- Uses approved sources and optional operator-supplied profiles
-- Produces a candidate pool for evaluation
-
-**Evaluator Agent**
-- Assesses each candidate against the role criteria
-- Produces match scores and written reasoning
-- Highlights strengths, gaps, and risk areas
-
-**Recommender Agent**
-- Ranks candidates by fit and evidence
-- Provides the best recommendations for recruiter review
-- Prepares the shortlist narrative for human action
-
-### How the agents collaborate
-
-The agents work as a coordinated pipeline: the Researcher gathers candidate context, the Evaluator scores fit, and the Recommender prioritizes the strongest matches into a recruiter-ready output. This keeps the system explainable and easier to reason about than a single opaque screening step.
+The API exposes `POST /api/runs` to start a run, `GET /api/runs/{run_id}` to poll it, and `GET /healthz` for process health. Run state is held in memory, only one run may execute at a time, and results are not retained across backend restarts. Reports are advisory; recruiters remain responsible for reviewing recommendations and making all decisions.
 
 ---
 
@@ -88,54 +79,54 @@ The agents work as a coordinated pipeline: the Researcher gathers candidate cont
 Before running the project, ensure you have:
 
 - Python 3.11+
-- pip or uv
-- A valid OpenAI API key
-- Optional: Serper API key for search-enabled demo mode
-- A local development environment for running the application and tests
+- Node.js and npm
+- A valid OpenAI API key for CrewAI runs
+- Optional: a Serper API key for search-enabled runs
 
-### Installation
+### Environment Setup
 
-```bash
-git clone <repository-url>
-cd recruitment-assistant
-python -m venv .venv
-source .venv/bin/activate
-```
-
-Windows PowerShell:
+Create and activate a virtual environment from the repository root, then install the backend and test dependencies:
 
 ```powershell
 python -m venv .venv
 .\.venv\Scripts\Activate.ps1
+python -m pip install -e ".[test]"
 ```
 
-Install the project dependencies after the Build phase scaffolding is in place:
+Set the required runtime and provider settings in the same PowerShell session that will run the backend:
 
-```bash
-pip install -r requirements.txt
+```powershell
+$env:AAMAD_TARGET_RUNTIME = "crewai"
+$env:OPENAI_API_KEY = "your-openai-api-key"
+$env:OPENAI_MODEL = "gpt-4o"
 ```
 
-Set environment variables as needed:
+`AAMAD_TARGET_RUNTIME=crewai` selects the implemented backend runtime. `OPENAI_API_KEY` is required for actual CrewAI execution, including fixture-backed runs. For optional public web research, also set both of these values:
 
-```bash
-export OPENAI_API_KEY="your-key"
-export OPENAI_MODEL="gpt-4o"
-# optional
-export SERPER_API_KEY="your-serper-key"
-export AAMAD_ENABLE_WEB_RESEARCH="false"
+```powershell
+$env:SERPER_API_KEY = "your-serper-api-key"
+$env:AAMAD_ENABLE_WEB_RESEARCH = "true"
 ```
 
-### Basic usage
+### Run the Application
 
-The app is intended to be used in the following way once the Build phase is complete:
+In the activated backend terminal, start the API from the repository root:
 
-1. Enter a job description or role requirements
-2. Optionally provide candidate profiles or fixture data
-3. Run the multi-agent workflow
-4. Review the ranked recommendations and rationale
-5. Use the generated report as a recruiter decision-support artifact
+```powershell
+python -m uvicorn recruitment_assistant.api:app --app-dir src --host 127.0.0.1 --port 8000
+```
 
-This usage is preliminary and will be finalized in the Build phase.
+In a second terminal, install and start the frontend:
+
+```powershell
+cd frontend
+npm install
+npm run dev
+```
+
+Open `http://127.0.0.1:5173`. The frontend proxies API requests to `http://127.0.0.1:8000`. The backend tests can be run from the repository root with `python -m pytest -q`; they stub the crew and do not require provider credentials.
+
+To use the application, submit job requirements in the browser, optionally enter synthetic candidate profiles, then review the ranked advisory report when the run completes.
 
 ---
 
@@ -148,36 +139,30 @@ recruitment-assistant/
 ├── AGENTS.md
 ├── CHECKLIST.md
 ├── README.md
+├── aamad.config.yml
 ├── aamad.config.example.yml
-├── project-context/
-│   └── 1.define/
-│       ├── mrd.md
-│       └── prd.md
-├── .cursor/
-│   ├── agents/
-│   ├── prompts/
-│   ├── rules/
-│   └── templates/
-├── .github/
-├── .vscode/
-├── src/
-├── app/
-├── tests/
-├── .env.example
-├── requirements.txt
 ├── pyproject.toml
-├── .gitignore
-└── docs/
+├── src/recruitment_assistant/
+│   ├── api.py
+│   ├── crew.py
+│   ├── fixtures.py
+│   └── config/
+├── frontend/
+│   └── src/
+├── project-context/
+│   ├── 1.define/
+│   ├── 2.build/
+│   └── 3.deliver/
+├── tests/
+└── .env.example
 ```
 
 ### Key artifacts and locations
 
-- project-context/1.define/: MRD and PRD definitions for the current phase
-- .cursor/: AAMAD agent and rule definitions
-- src/: backend implementation for the recruitment workflow
-- app/: frontend or UI layer for recruiter interaction
-- tests/: QA and validation coverage
-- docs/: supporting documentation and future project notes
+- `project-context/`: AAMAD product, architecture, build, and delivery artifacts
+- `src/recruitment_assistant/`: FastAPI service, CrewAI orchestration, fixtures, and YAML configuration
+- `frontend/`: React/Vite recruiter interface
+- `tests/`: backend API and crew tests
 
 ---
 
@@ -185,22 +170,19 @@ recruitment-assistant/
 
 ### Current phase
 
-This project is currently in the Define phase of the AAMAD lifecycle.
+The Build phase is complete. The backend, recruiter UI, and API integration are implemented, with fixture-based API verification.
 
 ### Completed
 
-- Product and market research completed
-- PRD drafted and aligned to the project scope
-- Recruitment assistant problem, goals, and MVP boundaries defined
-- Role and architecture decisions captured for the upcoming Build phase
+- Product requirements and solution architecture documented
+- FastAPI run/status/health endpoints and CrewAI workflow implemented
+- React/Vite recruiter interface integrated with asynchronous API polling
+- Synthetic fixtures, safety-oriented report checks, and backend tests in place
 
 ### Next
 
-- Build the CrewAI application and agent definitions
-- Implement recruiter-facing workflow and UI flow
-- Add fixture-based candidate data and QA coverage
-- Validate security and compliance guardrails
-- Prepare for the Deliver phase once the MVP is tested
+- Complete Deliver-phase packaging and operational documentation
+- Keep the MVP local or within an approved controlled demo; production hiring use is out of scope
 
 ---
 

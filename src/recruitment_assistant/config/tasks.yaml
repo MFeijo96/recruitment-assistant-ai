@@ -1,0 +1,46 @@
+research_candidates_task:
+  name: research_candidates_task
+  description: >-
+    Find up to 10 relevant candidate profiles for these job requirements:
+    {job_requirements}
+
+    Candidate profiles and approved fixture data:
+    {candidate_profiles}
+
+    Use only these profiles unless approved public search has explicitly been
+    enabled. Search only public, non-LinkedIn, non-gated sources; exclude
+    LinkedIn URLs and ignore results requiring login. Do not invent credentials,
+    sources, or contact details. Mark missing contact information as
+    "unknown - verify".
+  expected_output: >-
+    Markdown headed "## Candidate Profiles". For each candidate include a
+    profile identifier, job-relevant evidence, suitability, and source or
+    uncertainty. Include no more than 10 candidates.
+
+evaluate_candidates_task:
+  name: evaluate_candidates_task
+  description: >-
+    Evaluate the researched candidates against these job requirements:
+    {job_requirements}
+
+    Score only job-related evidence. Provide a 0-100 advisory score with
+    strengths, gaps, and an evidence-based rationale for every candidate.
+    Do not infer protected traits or recommend automatic hiring or rejection.
+  expected_output: >-
+    Markdown headed "## Scorecards". Include each candidate's advisory score,
+    strengths, gaps, evidence, and rationale.
+
+recommend_candidates_task:
+  name: recommend_candidates_task
+  description: >-
+    Create a ranked recruiter-facing shortlist from the research and scorecards.
+    Explain each recommendation with evidence and uncertainty. Include short,
+    personalized outreach templates for recommended candidates, but never send
+    messages. Do not repeat the full job specification. The entire result must
+    be plain markdown without an enclosing code fence.
+  expected_output: >-
+    Markdown report with these exact headings: "## Advisory", "## Ranked
+    Recommendations", "## Evidence and Uncertainty", and "## Outreach Drafts".
+    Include score justifications, source details when available, and label
+    unknown contact data "unknown - verify". State that recruiter review is
+    required and that no hiring decision or message was made.
