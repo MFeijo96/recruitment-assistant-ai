@@ -5,9 +5,11 @@ from __future__ import annotations
 import asyncio
 import logging
 import os
+import sys
 import threading
 import time
 import uuid
+from contextlib import asynccontextmanager
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
 from typing import Literal
@@ -25,6 +27,13 @@ from recruitment_assistant.crew import (
 )
 
 logger = logging.getLogger("recruitment_assistant")
+log_level = getattr(logging, os.getenv("LOG_LEVEL", "INFO").upper(), logging.INFO)
+logger.setLevel(log_level)
+logging.basicConfig(
+    level=log_level,
+    format="%(asctime)s %(levelname)s %(name)s %(message)s",
+    stream=sys.stdout,
+)
 RUN_TTL_SECONDS = 15 * 60
 MAX_EXECUTION_SECONDS = 480
 WORKER = ThreadPoolExecutor(max_workers=1, thread_name_prefix="recruitment-crew")
@@ -122,13 +131,47 @@ class RunRegistry:
 
 
 registry = RunRegistry()
-app = FastAPI(title="Recruitment Assistant API", version="0.1.0")
+
+
+@asynccontextmanager
+async def lifespan(_app: FastAPI):
+    logger.info("application_started name=recruitment_assistant version=0.1.0")
+    yield
+    logger.info("application_stopped name=recruitment_assistant")
+
+
+app = FastAPI(title="Recruitment Assistant API", version="0.1.0", lifespan=lifespan)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[os.getenv("FRONTEND_ORIGIN", "http://localhost:5173")],
     allow_methods=["GET", "POST"],
     allow_headers=["Content-Type"],
 )
+
+
+@app.middleware("http")
+async def log_http_requests(request: Request, call_next):
+    started_at = time.monotonic()
+    try:
+        response = await call_next(request)
+    except Exception as error:
+        logger.error(
+            "http_request_failed method=%s path=%s error_type=%s",
+            request.method,
+            request.url.path,
+            type(error).__name__,
+        )
+        raise
+
+    log_request = logger.warning if response.status_code >= 400 else logger.info
+    log_request(
+        "http_request_completed method=%s path=%s status_code=%s duration_seconds=%.3f",
+        request.method,
+        request.url.path,
+        response.status_code,
+        time.monotonic() - started_at,
+    )
+    return response
 
 
 def _execute_run(run_id: str, requirements: str, profiles: str) -> None:

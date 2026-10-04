@@ -2,8 +2,10 @@
 
 from __future__ import annotations
 
+import logging
 import os
 from pathlib import Path
+import time
 from typing import TYPE_CHECKING
 
 import yaml
@@ -13,6 +15,7 @@ from recruitment_assistant.fixtures import FIXTURE_CANDIDATES
 if TYPE_CHECKING:
     from crewai import Crew
 
+logger = logging.getLogger(__name__)
 CONFIG_DIR = Path(__file__).parent / "config"
 REQUIRED_REPORT_HEADINGS = (
     "## Advisory",
@@ -103,23 +106,40 @@ def build_crew() -> Crew:
         memory=False,
         max_rpm=10,
         verbose=False,
+        tracing=os.getenv("CREWAI_TRACING", "false").strip().lower() == "true",
     )
 
 
 def run_crew(job_requirements: str, candidate_profiles: str = "") -> str:
     use_web_research = web_research_enabled()
+    tracing_enabled = os.getenv("CREWAI_TRACING", "false").strip().lower() == "true"
     profiles = candidate_profiles.strip()
     if not profiles and not use_web_research:
         profiles = FIXTURE_CANDIDATES
 
-    result = build_crew().kickoff(
-        inputs={
-            "job_requirements": job_requirements,
-            "candidate_profiles": profiles,
-        }
+    started_at = time.monotonic()
+    logger.info("application_crew_execution_started tracing=%s", tracing_enabled)
+    try:
+        result = build_crew().kickoff(
+            inputs={
+                "job_requirements": job_requirements,
+                "candidate_profiles": profiles,
+            }
+        )
+        report = getattr(result, "raw", None) or str(result)
+        validate_report(report)
+    except Exception as error:
+        logger.error(
+            "application_crew_execution_failed error_type=%s duration_seconds=%.2f",
+            type(error).__name__,
+            time.monotonic() - started_at,
+        )
+        raise
+
+    logger.info(
+        "application_crew_execution_succeeded duration_seconds=%.2f",
+        time.monotonic() - started_at,
     )
-    report = getattr(result, "raw", None) or str(result)
-    validate_report(report)
     return report
 
 

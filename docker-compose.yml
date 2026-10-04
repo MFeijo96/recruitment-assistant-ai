@@ -1,0 +1,15 @@
+services:
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: recruitment-assistant-api:0.1.0
+    env_file:
+      - .env
+    environment:
+      AAMAD_TARGET_RUNTIME: crewai
+      FRONTEND_ORIGIN: http://127.0.0.1:5173
+    ports:
+      - "127.0.0.1:8000:8000"
+    init: true
+    restart: unless-stopped

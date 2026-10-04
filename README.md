@@ -85,12 +85,12 @@ Before running the project, ensure you have:
 
 ### Environment Setup
 
-Create and activate a virtual environment from the repository root, then install the backend and test dependencies:
+Create and activate a virtual environment from the repository root, then install the application dependencies:
 
 ```powershell
 python -m venv .venv
 .\.venv\Scripts\Activate.ps1
-python -m pip install -e ".[test]"
+python -m pip install -r requirements.txt
 ```
 
 Set the required runtime and provider settings in the same PowerShell session that will run the backend:
@@ -113,7 +113,7 @@ $env:AAMAD_ENABLE_WEB_RESEARCH = "true"
 In the activated backend terminal, start the API from the repository root:
 
 ```powershell
-python -m uvicorn recruitment_assistant.api:app --app-dir src --host 127.0.0.1 --port 8000
+python main.py
 ```
 
 In a second terminal, install and start the frontend:
@@ -124,7 +124,7 @@ npm install
 npm run dev
 ```
 
-Open `http://127.0.0.1:5173`. The frontend proxies API requests to `http://127.0.0.1:8000`. The backend tests can be run from the repository root with `python -m pytest -q`; they stub the crew and do not require provider credentials.
+Open `http://127.0.0.1:5173`. The frontend proxies API requests to `http://127.0.0.1:8000`. To run backend tests, install the test extra with `python -m pip install -e ".[test]"`, then run `python -m pytest -q`; tests stub the crew and do not require provider credentials.
 
 To use the application, submit job requirements in the browser, optionally enter synthetic candidate profiles, then review the ranked advisory report when the run completes.
 

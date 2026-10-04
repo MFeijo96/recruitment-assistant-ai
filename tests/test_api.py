@@ -53,6 +53,19 @@ def test_health_endpoint(client: TestClient):
     assert response.json() == {"status": "ok"}
 
 
+def test_request_logs_method_path_and_status_without_body(client: TestClient, caplog):
+    sensitive_body_value = "private-job-description-marker"
+
+    response = client.post(
+        "/api/runs",
+        json={"job_requirements": "  " + sensitive_body_value + "  "},
+    )
+
+    assert response.status_code == 202
+    assert "http_request_completed method=POST path=/api/runs status_code=202" in caplog.text
+    assert sensitive_body_value not in caplog.text
+
+
 def test_blank_job_requirements_are_rejected(client: TestClient):
     response = client.post("/api/runs", json={"job_requirements": "  "})
 

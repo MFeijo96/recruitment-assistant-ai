@@ -21,6 +21,7 @@ def test_crew_has_three_sequential_agents_and_context_chain(monkeypatch):
     monkeypatch.setenv("AAMAD_TARGET_RUNTIME", "crewai")
     monkeypatch.setenv("OPENAI_API_KEY", "test-key")
     monkeypatch.setenv("AAMAD_ENABLE_WEB_RESEARCH", "false")
+    monkeypatch.delenv("CREWAI_TRACING", raising=False)
     monkeypatch.delenv("SERPER_API_KEY", raising=False)
 
     crew = crew_module.build_crew()
@@ -47,7 +48,18 @@ def test_crew_has_three_sequential_agents_and_context_chain(monkeypatch):
     )
     assert crew.memory is False
     assert crew.max_rpm == 10
+    assert crew.tracing is False
     assert crew.agents[0].tools == []
+
+
+def test_crew_tracing_can_be_enabled(monkeypatch):
+    monkeypatch.setenv("AAMAD_TARGET_RUNTIME", "crewai")
+    monkeypatch.setenv("OPENAI_API_KEY", "test-key")
+    monkeypatch.setenv("CREWAI_TRACING", "true")
+    monkeypatch.setenv("AAMAD_ENABLE_WEB_RESEARCH", "false")
+    monkeypatch.delenv("SERPER_API_KEY", raising=False)
+
+    assert crew_module.build_crew().tracing is True
 
 
 def test_fixture_profiles_are_injected_for_offline_run(monkeypatch):
